@@ -3,6 +3,8 @@
 #
 # USAGE: gnomAD_AF_hist [vep annotated vcf with gnomAD AF]
 
+# ASSUMES THAT THE GNOMAD ALLELE FREQUENCY HAS BEEN ADDED BY VCFANNO AND IS IN THE INFO FIELD
+
 import hts
 import os
 import strutils
@@ -13,7 +15,8 @@ var
   annotation:string = ""
   no_csq = 0
   found = 0
-  no_gnomad = 0
+  not_in_gnomad = 0
+  in_gnomad = 0
   high_out = open(commandLineParams()[0]&"_high_impact_gnomAD_AF.txt", fmWrite)
   med_out = open(commandLineParams()[0]&"_med_impact_gnomAD_AF.txt", fmWrite)
 
@@ -42,43 +45,80 @@ for variant in vcf:
   found += 1
   if found mod 10000 == 0:
     stderr.write_line $found & " variants processed"
+  
+  # interuption for debugging
+  #if found == 10:
+  #  break
 
-  var csq = annotation.split("|")
-  if len(csq[45]) == 0:
-    no_gnomad += 1
+  # for use when gnomAD_AF is in the INFO field:
+  # variants with missing values are assigned 0
+  var
+    gnomad_af = newSeq[float32]()
+    status = variant.info.get("gnomAD_AF", gnomad_af)
+    csq = annotation.split("|")
+    impact: Impact
+
+  if status == Status.OK:
+    in_gnomad += 1
+
+  if status != Status.OK:
+    not_in_gnomad += 1
+
+  for a in annotation.split(","):
+    var asp = a.split("|")
+    for imp in asp[1].split('&'):
+      if imp in low_impacts:
+        continue
+      elif imp in med_impacts:
+        impact = Impact.MED
+      elif imp in high_impacts:
+        impact = Impact.HIGH
+      elif imp in unknown_impacts:
+        impact = Impact.UNKNOWN
+      else:
+        quit "unknown impact: " & imp
+  
+  if impact == Impact.UNKNOWN:
     continue
-  if len(csq[45]) > 0:
-    var impact: Impact
-    for a in annotation.split(","):
-      var asp = a.split("|")
-      for imp in asp[1].split('&'):
-        if imp in low_impacts:
-          continue
-        elif imp in med_impacts:
-          impact = Impact.MED
-        elif imp in high_impacts:
-          impact = Impact.HIGH
-        elif imp in unknown_impacts:
-          impact = Impact.UNKNOWN
-        else:
-          quit "unknown impact: " & imp
-
-    if impact == Impact.UNKNOWN:
-      continue
     
-    elif impact == Impact.LOW:
-      continue
+  elif impact == Impact.LOW:
+    continue
     
-    elif impact == Impact.HIGH:
-      high_out.write_line(csq[45])
-      continue
+  elif impact == Impact.HIGH:
+    high_out.write_line(gnomad_af[0])
+    continue
 
-    elif impact == Impact.MED:
-      med_out.write_line(csq[45])
-      continue
+  elif impact == Impact.MED:
+    med_out.write_line(gnomad_af[0])
+    continue
 
-    else:
-      quit "impact not medium or high " & $impact
+  else:
+    quit "impact not medium or high " & $impact
+
+echo "In gnomAD: " & $in_gnomad
+echo "Not in gnomAD: " & $not_in_gnomad
 
 high_out.close()
 med_out.close()
+
+# for use when gnomAD_AF is in the CSQ field:
+#[var csq = annotation.split("|")
+if len(csq[45]) == 0:
+  no_gnomad += 1
+  continue
+if len(csq[45]) > 0:
+  var impact: Impact
+  for a in annotation.split(","):
+    var asp = a.split("|")
+    for imp in asp[1].split('&'):
+      if imp in low_impacts:
+        continue
+      elif imp in med_impacts:
+        impact = Impact.MED
+      elif imp in high_impacts:
+        impact = Impact.HIGH
+      elif imp in unknown_impacts:
+        impact = Impact.UNKNOWN
+      else:
+        quit "unknown impact: " & imp
+  ]#

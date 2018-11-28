@@ -103,7 +103,7 @@ for variant in vcf:
     untransmitted.add(Sample(family_id: p.family_id, id: "un_"&p.family_id, kids:new_seq[Sample](), paternal_id: p.dad.id, maternal_id:p.mom.id, sex: 0, affected: 1))
 
 #TODO: expand the hst-nim library to include writing new samples to an exisiting or new vcf file
-
+# ??
 
 
 

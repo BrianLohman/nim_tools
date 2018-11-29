@@ -49,6 +49,9 @@ var
   gene_score_file = newFileStream("./sfari_gene_score_dict.txt", fmRead)
   dict_line:string = ""
 
+if gene_score_file == nil:
+  quit "couldn't find gene score file"
+
 while gene_score_file.readline(dict_line):
   var toks = dict_line.split('\t')
   try:

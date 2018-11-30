@@ -186,4 +186,4 @@ for k, score in score_tbl:
 output.close()
 score_output.close()
 
-echo "Variants without a gnomAD allele frequency added by VEP" & $no_gnomad
+echo "Variants without a gnomAD allele frequency added by VEP " & $no_gnomad

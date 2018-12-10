@@ -20,7 +20,7 @@ import streams
 const impact_field = 1
 
 # set the threshold for gnomAD allele freq
-var gnomAD_AF_threshold = 0.1
+var gnomAD_AF_threshold:float32 = 1
 
 # set the threshold for call_rate
 const call_threshold = 0.95
@@ -48,8 +48,11 @@ var
   gene:string
   score:int
   gene_score_dict = initTable[gene, score]()
-  gene_score_file = newFileStream("./sfari_gene_score_dict.txt", fmRead)
+  gene_score_file = newFileStream("/scratch/ucgd/lustre/work/u0806040/data/sfari_gene_score_dict.txt", fmRead)
   dict_line:string = ""
+
+if gene_score_file == nil:
+  quit "couldn't find gene score file"
 
 while gene_score_file.readline(dict_line):
   var toks = dict_line.split('\t')
@@ -90,7 +93,7 @@ var
 
 # loop over variants in vcf file
 for variant in vcf:
-    #echo variant.tostring
+    echo variant.tostring
     if variant.info.get("CSQ", ann) != Status.OK:
         missed += 1
         if missed mod 500 == 0:

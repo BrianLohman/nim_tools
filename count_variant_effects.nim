@@ -46,7 +46,7 @@ var
   gene:string
   score:int
   gene_score_dict = initTable[gene, score]()
-  gene_score_file = newFileStream("./sfari_gene_score_dict.txt", fmRead)
+  gene_score_file = newFileStream("/scratch/ucgd/lustre/work/u0806040/data/sfari_gene_score_dict.txt", fmRead)
   dict_line:string = ""
 
 if gene_score_file == nil:

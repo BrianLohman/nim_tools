@@ -93,7 +93,7 @@ var
 
 # loop over variants in vcf file
 for variant in vcf:
-    echo variant.tostring
+    #echo variant
     if variant.info.get("CSQ", ann) != Status.OK:
         missed += 1
         if missed mod 500 == 0:
@@ -168,7 +168,7 @@ for variant in vcf:
     if symbol in gene_score_dict:
       weighted_score = (6 - gene_score_dict[symbol])
     else:
-      continue
+      quit "variant not in SFARI gene score dict"
 
     # loop through samples for each variant
     for i, nalts in alts:

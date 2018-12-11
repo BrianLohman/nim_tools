@@ -55,7 +55,6 @@ for variant in vcf:
   var
     gnomad_af = newSeq[float32]()
     status = variant.info.get("gnomAD_AF", gnomad_af)
-    csq = annotation.split("|")
     impact: Impact
 
   if status == Status.OK:
@@ -63,6 +62,7 @@ for variant in vcf:
 
   if status != Status.OK:
     not_in_gnomad += 1
+    gnomad_af = 0
 
   for a in annotation.split(","):
     var asp = a.split("|")
@@ -84,14 +84,14 @@ for variant in vcf:
   elif impact == Impact.LOW:
     continue
     
-  elif impact == Impact.HIGH:
-    high_out.write_line(gnomad_af[0])
-    continue
-
   elif impact == Impact.MED:
     med_out.write_line(gnomad_af[0])
     continue
 
+  elif impact == Impact.HIGH:
+    high_out.write_line(gnomad_af[0])
+    continue
+  
   else:
     quit "impact not medium or high " & $impact
 
@@ -100,25 +100,3 @@ echo "Not in gnomAD: " & $not_in_gnomad
 
 high_out.close()
 med_out.close()
-
-# for use when gnomAD_AF is in the CSQ field:
-#[var csq = annotation.split("|")
-if len(csq[45]) == 0:
-  no_gnomad += 1
-  continue
-if len(csq[45]) > 0:
-  var impact: Impact
-  for a in annotation.split(","):
-    var asp = a.split("|")
-    for imp in asp[1].split('&'):
-      if imp in low_impacts:
-        continue
-      elif imp in med_impacts:
-        impact = Impact.MED
-      elif imp in high_impacts:
-        impact = Impact.HIGH
-      elif imp in unknown_impacts:
-        impact = Impact.UNKNOWN
-      else:
-        quit "unknown impact: " & imp
-  ]#

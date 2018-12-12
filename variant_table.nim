@@ -18,10 +18,10 @@ import streams
 
 # enumerate of impact levels
 type Impact = enum
+  UNKNOWN = -1
   LOW = 0
   MED = 1
   HIGH = 2
-  UNKNOWN = 3
   
 # define output variable
 var 
@@ -98,8 +98,7 @@ for variant in vcf:
     gnomad_af = @[0'f32]
 
   var 
-    impact: Impact
-    imp_list = newSeq[Impact]()
+    max_impact = Impact.UNKNOWN
   for a in csq.split(","):
     var asp = a.split("|")
     # deal with multiple annotations and querey sets above
@@ -107,17 +106,17 @@ for variant in vcf:
     # each variant, but break when HIGH is encountered
     for imp in asp[1].split('&'):
       if imp in unknown_impacts:
-        imp_list.add(Impact.UNKNOWN)
+        continue
       elif imp in low_impacts:
-        imp_list.add(Impact.LOW)
+        max_impact = max(max_impact, Impact.LOW)
       elif imp in med_impacts:
-        imp_list.add(Impact.MED)
+        max_impact = max(max_impact, Impact.MED)
       elif imp in high_impacts:
-        imp_list.add(Impact.HIGH)
+        max_impact = Impact.HIGH
       else:
         quit "unknown impact:" & imp
   
-  impact = max(imp_list)
+  var impact = max_impact
   #echo impact
   # skip variants of unknown impact
   if impact == Impact.UNKNOWN:

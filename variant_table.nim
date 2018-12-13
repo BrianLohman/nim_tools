@@ -30,10 +30,11 @@ var
   metadata = open(fh[0..^5]&"_variant_metadata.txt", fmWrite)
 
 # define impact levels by VEP annotation as a set
-var low_impacts = toSet(@["3_prime_UTR_truncation","non_canonical_start_codon","synonymous_variant","coding_sequence_variant","incomplete_terminal_codon_variant","stop_retained_variant","mature_miRNA_variant","5_prime_UTR_premature_start_codon_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_exon_variant","conserved_intron_variant","intron_variant","exon_variant","gene_variant","NMD_transcript_variant","non_coding_transcript_variant","upstream_gene_variant","downstream_gene_variant","TFBS_ablation","TFBS_amplification","TF_binding_site_variant","regulatory_region_amplification","feature_elongation","miRNA","transcript_variant","start_retained","regulatory_region_variant","feature_truncation","non_coding_exon_variant","nc_transcript_variant","conserved_intergenic_variant","intergenic_variant","intergenic_region","intragenic_variant","non_coding_transcript_exon_variant","non_coding_transcript_variant","transcript","sequence_feature","non_coding"])
-var med_impacts = toSet(@["disruptive_inframe_deletion","conservative_inframe_deletion","disruptive_inframe_insertion","conservative_inframe_insertion","duplication","inversion","exon_region","inframe_insertion","inframe_deletion","missense_variant","protein_altering_variant","initiator_codon_variant","regulatory_region_ablation","5_prime_UTR_truncation","splice_region_variant"])
-var high_impacts = toSet(@["chromosome_number_variation","transcript_ablation","exon_loss_variant","exon_loss","rare_amino_acid_variant","protein_protein_contact","structural_interaction_variant","feature_fusion","bidirectional_gene_fusion","gene_fusion","feature_ablation","splice_acceptor_variant","splice_donor_variant","start_retained_variant","stop_gained","frameshift_variant","stop_lost","start_lost","transcript_amplification"])
-var unknown_impacts = toSet(@["?","","UNKNOWN"])
+var
+  low_impacts = toSet(@["3_prime_UTR_truncation","non_canonical_start_codon","synonymous_variant","coding_sequence_variant","incomplete_terminal_codon_variant","stop_retained_variant","mature_miRNA_variant","5_prime_UTR_premature_start_codon_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_exon_variant","conserved_intron_variant","intron_variant","exon_variant","gene_variant","NMD_transcript_variant","non_coding_transcript_variant","upstream_gene_variant","downstream_gene_variant","TFBS_ablation","TFBS_amplification","TF_binding_site_variant","regulatory_region_amplification","feature_elongation","miRNA","transcript_variant","start_retained","regulatory_region_variant","feature_truncation","non_coding_exon_variant","nc_transcript_variant","conserved_intergenic_variant","intergenic_variant","intergenic_region","intragenic_variant","non_coding_transcript_exon_variant","non_coding_transcript_variant","transcript","sequence_feature","non_coding"])
+  med_impacts = toSet(@["disruptive_inframe_deletion","conservative_inframe_deletion","disruptive_inframe_insertion","conservative_inframe_insertion","duplication","inversion","exon_region","inframe_insertion","inframe_deletion","missense_variant","protein_altering_variant","initiator_codon_variant","regulatory_region_ablation","5_prime_UTR_truncation","splice_region_variant"])
+  high_impacts = toSet(@["chromosome_number_variation","transcript_ablation","exon_loss_variant","exon_loss","rare_amino_acid_variant","protein_protein_contact","structural_interaction_variant","feature_fusion","bidirectional_gene_fusion","gene_fusion","feature_ablation","splice_acceptor_variant","splice_donor_variant","start_retained_variant","stop_gained","frameshift_variant","stop_lost","start_lost","transcript_amplification"])
+  unknown_impacts = toSet(@["?","","UNKNOWN"])
 
 # build dictionary for gene score lookup
 # missing values are assigned 6 (worst)
@@ -118,43 +119,45 @@ for variant in vcf:
     call_rate_fail += 1
     continue
 
+  # parse the csq field
   # get sfari gene score assocaited with variant
+  # deal with overlapping genes by looping over annotations looking for sfari gene
+  # deal with multiple impact annotations by spllitting on & and checking for highest impact
   var
-    ann = csq.split('|')
-    symbol:string = ann[3]
-    sfari_score:int
-  if symbol in gene_score_dict:
-    sfari_score = gene_score_dict[symbol]
-  else:
-    gene_score_key_error += 1
-    continue
-  var 
+    sfari_score = -1
     max_impact = Impact.UNKNOWN
-  for a in csq.split(","):
-    var asp = a.split("|")
-    # deal with multiple annotations and querey sets above
-    # the loop should run as many times as there are annoations for
-    # each variant and assign the highest observed impact
+  for a in csq.split(','):
+    var
+      asp = a.split('|', maxsplit = 4)
+      symbol = asp[3]
+    if symbol in gene_score_dict:
+      sfari_score = gene_score_dict[symbol]
     for imp in asp[1].split('&'):
-      if imp in unknown_impacts:
-        continue
-      elif imp in low_impacts:
+      if imp in low_impacts:
         max_impact = max(max_impact, Impact.LOW)
       elif imp in med_impacts:
         max_impact = max(max_impact, Impact.MED)
       elif imp in high_impacts:
         max_impact = Impact.HIGH
+      elif imp in unknown_impacts:
+        continue
       else:
         quit "unknown impact:" & imp
+
+  if sfari_score == -1:
+    stderr.write_line "line with unknown genes"
+    for a in csq.split(','):
+      stderr.write_line a
+    quit "debug"
   
   var impact = max_impact
-  #echo impact
+  
   # skip variants of unknown impact
   if impact == Impact.UNKNOWN:
     unknown_impact += 1
     continue
   
-  # write to file, tab separated
+  # write to file, tab separated (convert genotypes to tab separated string)
   var s_alts = newSeq[string](alts.len)
   for i, a in alts:
     s_alts[i] = $a

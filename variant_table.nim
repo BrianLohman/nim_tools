@@ -23,10 +23,11 @@ type Impact = enum
   MED = 1
   HIGH = 2
   
-# define output variable
+# define I/O
 var 
   fh = commandLineParams()[0]
   o = open(fh[0..^5]&"_variant_table.txt", fmWrite)
+  metadata = open(fh[0..^5]&"_variant_metadata.txt", fmWrite)
 
 # define impact levels by VEP annotation as a set
 var low_impacts = toSet(@["3_prime_UTR_truncation","non_canonical_start_codon","synonymous_variant","coding_sequence_variant","incomplete_terminal_codon_variant","stop_retained_variant","mature_miRNA_variant","5_prime_UTR_premature_start_codon_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_exon_variant","conserved_intron_variant","intron_variant","exon_variant","gene_variant","NMD_transcript_variant","non_coding_transcript_variant","upstream_gene_variant","downstream_gene_variant","TFBS_ablation","TFBS_amplification","TF_binding_site_variant","regulatory_region_amplification","feature_elongation","miRNA","transcript_variant","start_retained","regulatory_region_variant","feature_truncation","non_coding_exon_variant","nc_transcript_variant","conserved_intergenic_variant","intergenic_variant","intergenic_region","intragenic_variant","non_coding_transcript_exon_variant","non_coding_transcript_variant","transcript","sequence_feature","non_coding"])
@@ -59,7 +60,7 @@ var vcf:VCF
 if not open(vcf, commandLineParams()[0], threads=3):
   quit "Couldn't open vcf"
 
-# progress tracking
+# run stats
 var
   no_csq = 0
   valid_csq = 0
@@ -67,6 +68,8 @@ var
   call_rate_fail = 0
   total_count = 0
   gene_score_key_error = 0
+  in_gnomad = 0
+  no_gnomad = 0
 
 # allocate memory
 var
@@ -97,32 +100,6 @@ for variant in vcf:
   if status != Status.OK:
     gnomad_af = @[0'f32]
 
-  var 
-    max_impact = Impact.UNKNOWN
-  for a in csq.split(","):
-    var asp = a.split("|")
-    # deal with multiple annotations and querey sets above
-    # the loop should run as many times as there are annoations for
-    # each variant, but break when HIGH is encountered
-    for imp in asp[1].split('&'):
-      if imp in unknown_impacts:
-        continue
-      elif imp in low_impacts:
-        max_impact = max(max_impact, Impact.LOW)
-      elif imp in med_impacts:
-        max_impact = max(max_impact, Impact.MED)
-      elif imp in high_impacts:
-        max_impact = Impact.HIGH
-      else:
-        quit "unknown impact:" & imp
-  
-  var impact = max_impact
-  #echo impact
-  # skip variants of unknown impact
-  if impact == Impact.UNKNOWN:
-    unknown_impact += 1
-    continue
-  
   # get number of alternate genotypes for each sample
   var alts = variant.format.genotypes(x).alts
 
@@ -151,8 +128,33 @@ for variant in vcf:
   else:
     gene_score_key_error += 1
     continue
+  var 
+    max_impact = Impact.UNKNOWN
+  for a in csq.split(","):
+    var asp = a.split("|")
+    # deal with multiple annotations and querey sets above
+    # the loop should run as many times as there are annoations for
+    # each variant and assign the highest observed impact
+    for imp in asp[1].split('&'):
+      if imp in unknown_impacts:
+        continue
+      elif imp in low_impacts:
+        max_impact = max(max_impact, Impact.LOW)
+      elif imp in med_impacts:
+        max_impact = max(max_impact, Impact.MED)
+      elif imp in high_impacts:
+        max_impact = Impact.HIGH
+      else:
+        quit "unknown impact:" & imp
   
-  # write to file
+  var impact = max_impact
+  #echo impact
+  # skip variants of unknown impact
+  if impact == Impact.UNKNOWN:
+    unknown_impact += 1
+    continue
+  
+  # write to file, tab separated
   var s_alts = newSeq[string](alts.len)
   for i, a in alts:
     s_alts[i] = $a
@@ -161,9 +163,14 @@ for variant in vcf:
 
 o.close()
 
-echo "total variant count = " & $total_count
-echo "variants with CSQ field " & $valid_csq
-echo "variants without CSQ field " & $no_csq
-echo "variants failing call rate filter " & $call_rate_fail
-echo "variants of unknown impact " & $unknown_impact
-echo "variants not associated with SFARI genes " & $gene_score_key_error
+# record metatdata
+metadata.write_line("Infile = " & commandLineParams()[0])
+metadata.write_line("Total variant count = " & $total_count)
+metadata.write_line("Variants with CSQ field = " & $valid_csq)
+metadata.write_line("Variants without CSQ field = " & $no_csq)
+metadata.write_line("Variants failing call rate filter = " & $call_rate_fail)
+metadata.write_line("Variants of unknown impact = " & $unknown_impact)
+metadata.write_line("Variants not associated with a SFARI gene = " & $gene_score_key_error)
+metadata.write_line("Variants in gnomAD = " & $in_gnomad)
+metadata.write_line("Variants not in gnomAD = " & $no_gnomad)
+metadata.close()

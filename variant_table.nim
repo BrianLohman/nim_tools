@@ -68,7 +68,7 @@ var
   unknown_impact = 0
   call_rate_fail = 0
   total_count = 0
-  gene_score_key_error = 0
+  #gene_score_key_error = 0
   in_gnomad = 0
   no_gnomad = 0
 
@@ -79,7 +79,7 @@ var
 
 # write header to file
 var t_samples = join(vcf.samples, "\t")
-o.write_line(&"impact\tsfari_score\tgnomAD_AF\t{t_samples}")
+o.write_line(&"chrom\tend\tref\talt\tgene\timpact\tsfari_score\tgnomAD_AF\t{t_samples}")
 
 # loop over variants in vcf
 for variant in vcf:
@@ -100,6 +100,10 @@ for variant in vcf:
     quit "unknown gnomAD_AF field"
   if status != Status.OK:
     gnomad_af = @[0'f32]
+    no_gnomad += 1
+
+  if status == Status.OK:
+    in_gnomad += 1
 
   # get number of alternate genotypes for each sample
   var alts = variant.format.genotypes(x).alts
@@ -126,12 +130,14 @@ for variant in vcf:
   var
     sfari_score = -1
     max_impact = Impact.UNKNOWN
+    symbol = ""
   for a in csq.split(','):
-    var
-      asp = a.split('|', maxsplit = 4)
-      symbol = asp[3]
+    var asp = a.split('|', maxsplit = 4)
+    symbol = asp[3]
     if symbol in gene_score_dict:
       sfari_score = gene_score_dict[symbol]
+    else:
+      continue
     for imp in asp[1].split('&'):
       if imp in low_impacts:
         max_impact = max(max_impact, Impact.LOW)
@@ -162,8 +168,7 @@ for variant in vcf:
   for i, a in alts:
     s_alts[i] = $a
   var t_alts = join(alts, "\t")
-  o.write_line(&"{impact}\t{sfari_score}\t{gnomad_af[0]}\t{talts}")
-
+  o.write_line(&"{variant.CHROM}\t{variant.POS}\t{variant.REF[0]}\t{variant.ALT}\t{symbol}\t{impact}\t{sfari_score}\t{gnomad_af[0]}\t{talts}")
 o.close()
 
 # record metatdata
@@ -173,7 +178,7 @@ metadata.write_line("Variants with CSQ field = " & $valid_csq)
 metadata.write_line("Variants without CSQ field = " & $no_csq)
 metadata.write_line("Variants failing call rate filter = " & $call_rate_fail)
 metadata.write_line("Variants of unknown impact = " & $unknown_impact)
-metadata.write_line("Variants not associated with a SFARI gene = " & $gene_score_key_error)
+#metadata.write_line("Variants not associated with a SFARI gene = " & $gene_score_key_error)
 metadata.write_line("Variants in gnomAD = " & $in_gnomad)
 metadata.write_line("Variants not in gnomAD = " & $no_gnomad)
 metadata.close()

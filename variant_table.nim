@@ -125,26 +125,39 @@ for variant in vcf:
 
   # parse the csq field
   # get sfari gene score assocaited with variant
+  # as written, the last entry in the CSQ field that is in SFARI will be used
   # deal with overlapping genes by looping over annotations looking for sfari gene
   # deal with multiple impact annotations by spllitting on & and checking for highest impact
   var
     sfari_score = -1
     max_impact = Impact.UNKNOWN
-    symbol = ""
+    symbol = "empty"
   for a in csq.split(','):
-    var asp = a.split('|', maxsplit = 4)
-    symbol = asp[3]
-    if symbol in gene_score_dict:
-      sfari_score = gene_score_dict[symbol]
+    var
+      asp = a.split('|', maxsplit = 4)
+      this_symbol = asp[3]
+    if this_symbol in gene_score_dict:
+      sfari_score = gene_score_dict[this_symbol]
     else:
       continue
+    
     for imp in asp[1].split('&'):
+
       if imp in low_impacts:
+        if Impact.LOW > max_impact:
+          symbol = this_symbol
         max_impact = max(max_impact, Impact.LOW)
+
       elif imp in med_impacts:
+        if Impact.MED > max_impact:
+          symbol = this_symbol
         max_impact = max(max_impact, Impact.MED)
+
       elif imp in high_impacts:
+        if Impact.HIGH > max_impact:
+          symbol = this_symbol
         max_impact = Impact.HIGH
+      
       elif imp in unknown_impacts:
         continue
       else:
@@ -168,7 +181,8 @@ for variant in vcf:
   for i, a in alts:
     s_alts[i] = $a
   var t_alts = join(alts, "\t")
-  o.write_line(&"{variant.CHROM}\t{variant.POS}\t{variant.REF[0]}\t{variant.ALT}\t{symbol}\t{impact}\t{sfari_score}\t{gnomad_af[0]}\t{talts}")
+  o.write_line(&"{variant.CHROM}\t{variant.POS}\t{variant.REF[0]}\t{variant.ALT[0]}\t{symbol}\t{impact}\t{sfari_score}\t{gnomad_af[0]}\t{talts}")
+
 o.close()
 
 # record metatdata

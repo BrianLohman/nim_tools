@@ -125,7 +125,6 @@ for variant in vcf:
 
   # parse the csq field
   # get sfari gene score assocaited with variant
-  # as written, the last entry in the CSQ field that is in SFARI will be used
   # deal with overlapping genes by looping over annotations looking for sfari gene
   # deal with multiple impact annotations by spllitting on & and checking for highest impact
   var

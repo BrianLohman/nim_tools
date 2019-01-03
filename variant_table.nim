@@ -28,6 +28,7 @@ var
   fh = commandLineParams()[0]
   o = open(fh[0..^5]&"_variant_table.txt", fmWrite)
   metadata = open(fh[0..^5]&"_variant_metadata.txt", fmWrite)
+  err = open(fh[0..^5]&"_variant_errors.txt", fmWrite)
 
 # define impact levels by VEP annotation as a set
 var
@@ -68,7 +69,7 @@ var
   unknown_impact = 0
   call_rate_fail = 0
   total_count = 0
-  #gene_score_key_error = 0
+  gene_score_key_error = 0
   in_gnomad = 0
   no_gnomad = 0
 
@@ -163,11 +164,12 @@ for variant in vcf:
         quit "unknown impact:" & imp
 
   if sfari_score == -1:
-    stderr.write_line "line with unknown genes"
+    err.write_line "line with unknown genes"
+    gene_score_key_error += 1
     for a in csq.split(','):
-      stderr.write_line a
-    quit "debug"
-  
+      err.write_line a
+    continue
+
   var impact = max_impact
   
   # skip variants of unknown impact
@@ -191,6 +193,7 @@ metadata.write_line("Variants with CSQ field = " & $valid_csq)
 metadata.write_line("Variants without CSQ field = " & $no_csq)
 metadata.write_line("Variants failing call rate filter = " & $call_rate_fail)
 metadata.write_line("Variants of unknown impact = " & $unknown_impact)
+metadata.write_line("Variants not associated with a SFARI gene " & $gene_score_key_error)
 metadata.write_line("Variants in gnomAD = " & $in_gnomad)
 metadata.write_line("Variants not in gnomAD = " & $no_gnomad)
 metadata.close()

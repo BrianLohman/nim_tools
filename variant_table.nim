@@ -180,7 +180,7 @@ for variant in vcf:
   for i, a in alts:
     s_alts[i] = $a
   var t_alts = join(alts, "\t")
-  o.write_line(&"{variant.CHROM}\t{variant.POS}\t{variant.REF[0]}\t{variant.ALT[0]}\t{symbol}\t{impact}\t{sfari_score}\t{gnomad_af[0]}\t{talts}")
+  o.write_line(&"{variant.CHROM}\t{variant.POS}\t{variant.REF}\t{variant.ALT[0]}\t{symbol}\t{impact}\t{sfari_score}\t{gnomad_af[0]}\t{talts}")
 
 o.close()
 
@@ -191,7 +191,6 @@ metadata.write_line("Variants with CSQ field = " & $valid_csq)
 metadata.write_line("Variants without CSQ field = " & $no_csq)
 metadata.write_line("Variants failing call rate filter = " & $call_rate_fail)
 metadata.write_line("Variants of unknown impact = " & $unknown_impact)
-#metadata.write_line("Variants not associated with a SFARI gene = " & $gene_score_key_error)
 metadata.write_line("Variants in gnomAD = " & $in_gnomad)
 metadata.write_line("Variants not in gnomAD = " & $no_gnomad)
 metadata.close()
